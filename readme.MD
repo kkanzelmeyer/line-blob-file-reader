@@ -34,5 +34,6 @@ const blobReader = new LineBlobFileReader(file);
 blobReader.readFile(handleBlob);
 ```
 
-## Customization
-Set the file size in
+## Documentation
+
+## Examples
