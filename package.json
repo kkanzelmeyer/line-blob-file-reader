@@ -1,0 +1,11 @@
+{
+  "name": "line-blob-file-reader",
+  "version": "0.0.1",
+  "description": "A module to read large files in the browser by reading blobs of lines",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
