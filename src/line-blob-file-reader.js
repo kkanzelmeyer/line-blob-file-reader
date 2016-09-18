@@ -4,10 +4,9 @@ class FileLineReader {
   /**
    * FileLineReader constructor
    * @param  {File} file      The file reference
-   * @param  {Number} chunkSize The size in bytes to read at one time
-   * @param  {String} delimiter The character to search for in the data chunk
+   * @param  {Object} options The configuration options
    */
-  constructor (file, chunkSize, delimiter) {
+  constructor (file, options) {
     this.file = file;
     this._setDefaults = this._setDefaults.bind(this);
     this._readBlob = this._readBlob.bind(this);
@@ -17,12 +16,12 @@ class FileLineReader {
     this.readLastBlob = this.readLastBlob.bind(this);
     this.readReverse = false;
     this.defaults = {
-      chunkSize: chunkSize || 1024*100*1,
+      chunkSize: options.chunkSize || 1024*100*1,
       offset: 0,
       objectCount: 0,
       progress: 0,
       chunksRead: 0,
-      delimiter: delimiter || '\n'
+      delimiter: options.delimiter || '\n'
     };
   }
 
@@ -40,15 +39,15 @@ class FileLineReader {
     this.fr = new FileReader();
 
     // simple error handler
-    this.fr.onerror = function () {
-      console.debug('Error reading file =(');
+    this.fr.onerror = (err) => {
+      throw Error(err);
     };
   }
 
   /**
    * Method to read a slice of a file
    */
-  _readBlob (callback) {
+  _readBlob (cb) {
     const { file, offset, fr } = this;
     let nextChunk = this.offset + this.chunkSize;
 
@@ -56,15 +55,11 @@ class FileLineReader {
     if (nextChunk > file.size) {
       // adjust the final chunk size to read the remaining file contents
       this.chunkSize = nextChunk-file.size;
-      console.debug('Last chunk of data');
     }
 
     // reached end of file
     if (offset >= file.size) {
-      console.debug('End of file');
-      console.debug(`Object count: ${this.objectCount}`);
-      console.debug(`Chunks Read: ${this.chunksRead}`);
-      callback({}, 100, true);
+      cb({}, 100, true);
       return;
     }
 
@@ -77,14 +72,13 @@ class FileLineReader {
    *
    * @param  {Function} callback The function to call after the slice is processed
    */
-  _processBlob (callback) {
+  _processBlob (cb) {
     const { file, fr, delimiter } = this;
 
     const dataChunk = fr.result;
     const lastCharIndex = this.readReverse ? dataChunk.indexOf(delimiter)+1 : dataChunk.lastIndexOf(delimiter);
     if (lastCharIndex === -1) {
-      console.debug('No delimiter found');
-      console.debug(dataChunk);
+      throw Error('delimeter not found');
       return;
     }
 
@@ -95,7 +89,7 @@ class FileLineReader {
 
     // update the callback
     this.progress = Math.round((this.offset/file.size) * 100);
-    callback(resultString, this.progress);
+    cb(resultString, this.progress);
 
     // update bookkeeping values
     this.objectCount += dataObject.length;
@@ -109,14 +103,13 @@ class FileLineReader {
    * @param  {Function} callback The function to call after each slice is processed.
    *                             The callback is given (data, progress, finished)
    */
-  readFile (callback) {
-    console.debug('reading file');
+  readFile (cb) {
     this._setDefaults();
     this.fr.onload = () => {
-      this._processBlob(callback);
-      this._readBlob(callback);
+      this._processBlob(cb);
+      this._readBlob(cb);
     };
-    this._readBlob(callback);
+    this._readBlob(cb);
   }
 
   /**
@@ -125,11 +118,10 @@ class FileLineReader {
    * @param  {Function} callback The function to call after each slice is processed.
    *                             The callback is given (data, progress)
    */
-  readFirstBlob (callback) {
-    console.debug('reading first file chunk');
+  readFirstBlob (cb) {
     this._setDefaults();
     this.fr.onload = () => {
-      this._processBlob(callback);
+      this._processBlob(cb);
     };
     this._readBlob();
   }
@@ -140,14 +132,13 @@ class FileLineReader {
    * @param  {Function} callback The function to call after each slice is processed.
    *                             The callback is given (data, progress)
    */
-  readLastBlob (callback) {
-    console.debug('reading last file chunk');
+  readLastBlob (cb) {
     this._setDefaults();
     // force the seek function to only read the last file chunk
     this.offset = this.file.size - this.chunkSize;
     this.readReverse = true;
     this.fr.onload = () => {
-      this._processBlob(callback);
+      this._processBlob(cb);
     };
     this._readBlob();
   }
