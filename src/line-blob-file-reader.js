@@ -1,12 +1,13 @@
+import FileAPI from 'file-api';
 
 class FileLineReader {
 
   /**
    * FileLineReader constructor
-   * @param  {File} file      The file reference
-   * @param  {Object} options The configuration options
+   * @param  {FileWrapper}  file      The file reference
+   * @param  [Object]       options   The configuration options
    */
-  constructor (file, options) {
+  constructor(file, options) {
     this.file = file;
     this._setDefaults = this._setDefaults.bind(this);
     this._readBlob = this._readBlob.bind(this);
@@ -16,27 +17,25 @@ class FileLineReader {
     this.readLastBlob = this.readLastBlob.bind(this);
     this.readReverse = false;
     this.defaults = {
-      chunkSize: options.chunkSize || 1024*100*1,
+      chunkSize: options.chunkSize || 1024 * 100 * 1,
       offset: 0,
-      objectCount: 0,
       progress: 0,
       chunksRead: 0,
-      delimiter: options.delimiter || '\n'
+      delimiter: options.delimiter || '\n',
     };
   }
 
   /**
    * Sets the initial values to the defaults
    */
-  _setDefaults () {
-    const { chunkSize, offset, objectCount, progress, chunksRead, delimiter } = this.defaults;
+  _setDefaults() {
+    const { chunkSize, offset, progress, chunksRead, delimiter } = this.defaults;
     this.chunkSize = chunkSize;
     this.offset = offset;
-    this.objectCount = objectCount;
     this.progress = progress;
     this.chunksRead = chunksRead;
     this.delimiter = delimiter;
-    this.fr = new FileReader();
+    this.fr = new FileAPI.FileReader();
 
     // simple error handler
     this.fr.onerror = (err) => {
@@ -47,18 +46,18 @@ class FileLineReader {
   /**
    * Method to read a slice of a file
    */
-  _readBlob (cb) {
+  _readBlob(cb) {
     const { file, offset, fr } = this;
-    let nextChunk = this.offset + this.chunkSize;
+    const nextChunk = this.offset + this.chunkSize;
 
     // approcahing end of file
-    if (nextChunk > file.size) {
+    if (nextChunk > file.size()) {
       // adjust the final chunk size to read the remaining file contents
-      this.chunkSize = nextChunk-file.size;
+      this.chunkSize = nextChunk - file.size();
     }
 
     // reached end of file
-    if (offset >= file.size) {
+    if (offset >= file.size()) {
       cb({}, 100, true);
       return;
     }
@@ -72,14 +71,15 @@ class FileLineReader {
    *
    * @param  {Function} callback The function to call after the slice is processed
    */
-  _processBlob (cb) {
+  _processBlob(cb) {
     const { file, fr, delimiter } = this;
 
     const dataChunk = fr.result;
-    const lastCharIndex = this.readReverse ? dataChunk.indexOf(delimiter)+1 : dataChunk.lastIndexOf(delimiter);
+    const lastCharIndex = this.readReverse ?
+      dataChunk.indexOf(delimiter) + 1
+      : dataChunk.lastIndexOf(delimiter);
     if (lastCharIndex === -1) {
       throw Error('delimeter not found');
-      return;
     }
 
     // Make data chunk end at the last complete line
@@ -88,12 +88,11 @@ class FileLineReader {
       : `${dataChunk.substring(0, lastCharIndex)}`;
 
     // update the callback
-    this.progress = Math.round((this.offset/file.size) * 100);
+    this.progress = Math.round((this.offset / file.size()) * 100);
     cb(resultString, this.progress);
 
     // update bookkeeping values
-    this.objectCount += dataObject.length;
-    this.offset += lastCharIndex+1;
+    this.offset += lastCharIndex + 1;
     this.chunksRead += 1;
   }
 
@@ -103,7 +102,7 @@ class FileLineReader {
    * @param  {Function} callback The function to call after each slice is processed.
    *                             The callback is given (data, progress, finished)
    */
-  readFile (cb) {
+  readFile(cb) {
     this._setDefaults();
     this.fr.onload = () => {
       this._processBlob(cb);
@@ -118,7 +117,7 @@ class FileLineReader {
    * @param  {Function} callback The function to call after each slice is processed.
    *                             The callback is given (data, progress)
    */
-  readFirstBlob (cb) {
+  readFirstBlob(cb) {
     this._setDefaults();
     this.fr.onload = () => {
       this._processBlob(cb);
@@ -132,10 +131,10 @@ class FileLineReader {
    * @param  {Function} callback The function to call after each slice is processed.
    *                             The callback is given (data, progress)
    */
-  readLastBlob (cb) {
+  readLastBlob(cb) {
     this._setDefaults();
     // force the seek function to only read the last file chunk
-    this.offset = this.file.size - this.chunkSize;
+    this.offset = this.file.size() - this.chunkSize;
     this.readReverse = true;
     this.fr.onload = () => {
       this._processBlob(cb);

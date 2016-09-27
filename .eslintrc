@@ -3,7 +3,12 @@
     "ecmaVersion": 6,
     "sourceType": "module"
   },
-  "rules": {},
+  "extends": "airbnb/base",
+  "rules": {
+    "arrow-parens": 0,
+    "import/no-extraneous-dependencies": 0,
+    "no-underscore-dangle": 0
+    },
   "env": {
     "browser": true,
     "node": true
